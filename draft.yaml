@@ -1,0 +1,33 @@
+models:
+  Category:
+    name: string
+    slug: string
+    relationships:
+      hasMany: Post
+
+  Post:
+    category_id: id foreign
+    title: string
+    content: longtext
+    image_url: string nullable
+    published_at: timestamp nullable
+    relationships:
+      belongsTo: Category
+      belongsToMany: User
+
+  Interaction:
+    user_id: id foreign
+    post_id: id foreign
+    type: enum:view,like,share,rate
+    weight: integer default:1  # Used for the filtering math (e.g., Like = 5, View = 1)
+    timestamps: true
+
+seeders: Category, Post, Interaction
+
+controllers:
+  Post:
+    index:
+      query: all
+      render: post.index
+    show:
+      render: post.show
