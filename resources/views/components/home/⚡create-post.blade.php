@@ -1,6 +1,9 @@
 <?php
 
 use Livewire\Component;
+use App\Models\Post;
+use App\Models\Category;
+use Illuminate\Support\Facades\Auth;
 
 new class extends Component {
     public $title;
@@ -11,8 +14,9 @@ new class extends Component {
 
     public function mount()
     {
-        $this->categories = \App\Models\Category::all();
+        $this->categories = Category::all();
     }
+
     protected $rules = [
         'title' => 'required|min:5|max:255',
         'category_id' => 'required|exists:categories,id',
@@ -24,8 +28,7 @@ new class extends Component {
     {
         $this->validate();
 
-        Post::create([
-            'user_id' => Auth::id(), // Assuming you have a user_id on Post for ownership
+        $post = Post::create([
             'category_id' => $this->category_id,
             'title' => $this->title,
             'content' => $this->content,
@@ -33,82 +36,61 @@ new class extends Component {
             'published_at' => now(),
         ]);
 
+        $post->users()->attach(Auth::id());
+
         $this->reset(['title', 'category_id', 'content', 'image_url']);
 
-        // Notify the Feed component to refresh
-        $this->dispatch('post-created');
+        $this->dispatch('post-created', postId: $post->id);
 
-        session()->flash('message', 'Post published successfully!');
-    } //
+        session()->flash('message', 'Post published!');
+    }
 };
 ?>
 
-<div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-    <h2 class="mb-4 text-lg font-bold text-gray-800">Create a New Post</h2>
+<div class="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+    <flux:heading size="md" class="mb-3">What's on your mind?</flux:heading>
 
     @if (session()->has('message'))
-        <div class="mb-4 rounded-lg bg-green-100 p-3 text-sm text-green-700">
-            {{ session('message') }}
+        <div x-data="{ show: true }"
+             x-show="show"
+             x-init="setTimeout(() => show = false, 3000)"
+             x-transition:leave="transition ease-in duration-300"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0">
+            <flux:callout class="mb-4" variant="success">
+                {{ session('message') }}
+            </flux:callout>
         </div>
     @endif
 
-    <form class="space-y-4"
-          wire:submit.prevent="save">
-        <!-- Title -->
-        <div>
-            <input class="w-full rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                   type="text"
-                   wire:model="title"
-                   placeholder="What's on your mind?">
-            @error('title')
-                <span class="text-xs text-red-500">{{ $message }}</span>
-            @enderror
-        </div>
+    <form wire:submit="save" class="space-y-3">
+        <flux:field>
+            <flux:input wire:model="title" placeholder="Title" />
+            <flux:error name="title" />
+        </flux:field>
 
-        <div class="grid grid-cols-2 gap-4">
-            <!-- Category Dropdown -->
-            <div>
-                <select class="w-full rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        wire:model="category_id">
-                    <option value="">Select Category</option>
-                    @foreach ($categories as $category)
-                        <option value="{{ $category->id }}">{{ $category->name }}</option>
-                    @endforeach
-                </select>
-                @error('category_id')
-                    <span class="text-xs text-red-500">{{ $message }}</span>
-                @enderror
-            </div>
+        <flux:field>
+            <flux:select wire:model="category_id" placeholder="Select category">
+                <flux:select.option value="">Category</flux:select.option>
+                @foreach ($categories as $category)
+                    <flux:select.option value="{{ $category->id }}">{{ $category->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <flux:error name="category_id" />
+        </flux:field>
 
-            <!-- Image URL -->
-            <div>
-                <input class="w-full rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                       type="text"
-                       wire:model="image_url"
-                       placeholder="Image URL (optional)">
-                @error('image_url')
-                    <span class="text-xs text-red-500">{{ $message }}</span>
-                @enderror
-            </div>
-        </div>
+        <flux:field>
+            <flux:input wire:model="image_url" type="url" placeholder="Image URL (optional)" />
+            <flux:error name="image_url" />
+        </flux:field>
 
-        <!-- Content -->
-        <div>
-            <textarea class="w-full rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                      wire:model="content"
-                      rows="3"
-                      placeholder="Share your thoughts..."></textarea>
-            @error('content')
-                <span class="text-xs text-red-500">{{ $message }}</span>
-            @enderror
-        </div>
+        <flux:field>
+            <flux:textarea wire:model="content" rows="3" placeholder="What's happening?" />
+            <flux:error name="content" />
+        </flux:field>
 
-        <!-- Submit Button -->
         <div class="flex justify-end">
-            <button class="transform rounded-lg bg-blue-600 px-6 py-2 font-semibold text-white transition duration-200 ease-in-out hover:scale-105 hover:bg-blue-700"
-                    type="submit">
-                Post Content
-            </button>
+            <flux:button type="submit" variant="primary" size="sm">Post</flux:button>
         </div>
     </form>
 </div>
