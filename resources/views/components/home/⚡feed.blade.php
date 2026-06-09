@@ -183,7 +183,7 @@ new class extends Component {
             <div wire:loading.remove
                  wire:target="refreshFeed">
                 @forelse ($posts as $post)
-                    <div class="@if ($post->id === $newPostId) animate-slide-in border-b-2 border-blue-500 bg-blue-50/50 dark:border-blue-400 dark:bg-blue-900/10 @else border-b border-zinc-200 dark:border-zinc-700 @endif dark:hover:bg-zinc-750 bg-white px-4 py-4 transition-all hover:bg-zinc-50 dark:bg-zinc-800"
+                    <div class="@if ($post->id === $newPostId) animate-slide-in border-b-2 border-blue-500 bg-blue-50/50 dark:border-blue-400 dark:bg-blue-900/20 @else border-b border-zinc-200 dark:border-zinc-700 @endif px-4 py-4 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
                          wire:key="post-{{ $post->id }}">
                         <div class="flex gap-3">
                             <div class="flex-shrink-0">

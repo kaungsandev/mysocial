@@ -17,14 +17,14 @@
             <div class="hidden w-full overflow-y-auto border-l border-zinc-200 bg-zinc-50 p-4 md:block md:w-80 md:flex-none dark:border-zinc-700 dark:bg-zinc-900">
                 <!-- Refresh Button -->
                 <button onclick="Livewire.dispatch('refresh-feed')"
-                        class="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow transition hover:bg-zinc-100 dark:bg-gray-800 dark:text-zinc-300 dark:hover:bg-gray-700">
+                        class="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow transition hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
                     <flux:icon name="arrow-path" class="h-4 w-4" />
                     Refresh Feed
                 </button>
 
-                <div class="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
-                    <h3 class="border-b pb-2 font-bold">Recommended for You</h3>
-                    <p class="mt-2 text-xs text-gray-500">Based on your shared interests with other users.</p>
+                <div class="rounded-lg bg-white p-4 shadow dark:bg-zinc-800">
+                    <h3 class="border-b border-zinc-200 pb-2 font-bold dark:border-zinc-700 dark:text-zinc-100">Recommended for You</h3>
+                    <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Based on your shared interests with other users.</p>
                 </div>
 
                 <!-- Scroll to Top Button -->

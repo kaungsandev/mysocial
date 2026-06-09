@@ -16,7 +16,7 @@ class InteractionFactory extends Factory
         return [
             'user_id' => User::factory(),
             'post_id' => Post::factory(),
-            'type' => fake()->randomElement(["view","like","share","rate"]),
+            'type' => fake()->randomElement(['view', 'like', 'share', 'rate']),
             'weight' => fake()->numberBetween(-10000, 10000),
         ];
     }

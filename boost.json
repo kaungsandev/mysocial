@@ -5,13 +5,19 @@
         "opencode"
     ],
     "guidelines": true,
-    "herd_mcp": true,
+    "herd_mcp": false,
     "mcp": true,
+    "packages": [
+        "laravel/fortify",
+        "livewire/blaze"
+    ],
     "sail": false,
     "skills": [
         "fluxui-development",
         "livewire-development",
         "pest-testing",
-        "tailwindcss-development"
+        "tailwindcss-development",
+        "fortify-development",
+        "blaze-optimize"
     ]
 }

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->addColumn('new_account', 'boolean')->default(true);
+            $table->boolean('new_account')->default(true);
         });
     }
 

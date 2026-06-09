@@ -17,7 +17,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained();
             $table->foreignId('post_id')->constrained();
-            $table->enum('type', ["view","like","share","rate"]);
+            $table->enum('type', ['view', 'like', 'share', 'rate']);
             $table->integer('weight')->default(1);
             $table->timestamps();
         });

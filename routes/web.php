@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PostController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -9,4 +10,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 require __DIR__.'/settings.php';
 
-Route::resource('posts', App\Http\Controllers\PostController::class)->only('index', 'show');
+Route::resource('posts', PostController::class)->only('index', 'show');

@@ -2,13 +2,14 @@
 
 namespace Tests\Feature\Http\Controllers;
 
+use App\Http\Controllers\PostController;
 use App\Models\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * @see \App\Http\Controllers\PostController
+ * @see PostController
  */
 final class PostControllerTest extends TestCase
 {
@@ -24,7 +25,6 @@ final class PostControllerTest extends TestCase
         $response->assertOk();
         $response->assertViewIs('post.index');
     }
-
 
     #[Test]
     public function show_displays_view(): void
