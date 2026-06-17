@@ -3,6 +3,7 @@
 use Livewire\Component;
 use App\Models\Post;
 use Illuminate\Support\Collection;
+use App\Services\RecommendationService;
 
 new class extends Component {
     public Collection $posts;
@@ -71,13 +72,17 @@ new class extends Component {
 
     public function loadPosts()
     {
-        $this->posts = Post::with(['users', 'category'])
-            ->latest('published_at')
-            ->forPage($this->page, $this->perPage)
-            ->get();
+        $userId = auth()->id();
+        $service = app(RecommendationService::class);
 
-        $total = Post::count();
-        $this->hasMore = $this->page * $this->perPage < $total;
+        $this->posts = $userId
+            ? $service->recommend($userId, $this->page, $this->perPage)
+            : Post::with(['users', 'category'])
+                ->latest('published_at')
+                ->forPage($this->page, $this->perPage)
+                ->get();
+
+        $this->hasMore = $this->posts->count() === $this->perPage;
     }
 
     public function loadMore()
@@ -88,11 +93,15 @@ new class extends Component {
 
         $this->loading = true;
         $this->page++;
+        $userId = auth()->id();
+        $service = app(RecommendationService::class);
 
-        $olderPosts = Post::with(['users', 'category'])
-            ->latest('published_at')
-            ->forPage($this->page, $this->perPage)
-            ->get();
+        $olderPosts = $userId
+            ? $service->recommend($userId, $this->page, $this->perPage)
+            : Post::with(['users', 'category'])
+                ->latest('published_at')
+                ->forPage($this->page, $this->perPage)
+                ->get();
 
         if ($olderPosts->isEmpty()) {
             $this->hasMore = false;
@@ -100,9 +109,7 @@ new class extends Component {
             foreach ($olderPosts as $post) {
                 $this->posts->push($post);
             }
-
-            $total = Post::count();
-            $this->hasMore = $this->page * $this->perPage < $total;
+            $this->hasMore = $olderPosts->count() === $this->perPage;
         }
 
         $this->loading = false;

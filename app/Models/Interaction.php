@@ -18,7 +18,7 @@ class Interaction extends Model
     protected $fillable = [
         'user_id',
         'post_id',
-        'type',
+        'interaction_type',
         'weight',
     ];
 

@@ -7,14 +7,14 @@ use Illuminate\Http\Request;
 
 class PostController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request): \Illuminate\Contracts\View\View
     {
         $posts = Post::all();
 
         return view('post.index');
     }
 
-    public function show(Request $request, Post $post): Response
+    public function show(Request $request, Post $post): \Illuminate\Contracts\View\View
     {
         return view('post.show');
     }
