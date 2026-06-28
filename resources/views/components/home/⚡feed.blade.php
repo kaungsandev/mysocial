@@ -2,11 +2,18 @@
 
 use Livewire\Component;
 use App\Models\Post;
+use App\Models\Interaction;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use App\Services\RecommendationService;
+use App\Services\InterActionService;
+use App\Services\InterestService;
+use App\Enums\InteractionTypeEnum;
 
 new class extends Component {
     public Collection $posts;
+    public array $likedPostIds = [];
+
     public ?int $newPostId = null;
     public int $page = 1;
     public int $perPage = 10;
@@ -17,13 +24,50 @@ new class extends Component {
 
     protected $listeners = ['post-created' => 'onPostCreated', 'load-more' => 'loadMore', 'refresh-feed' => 'refreshFeed'];
 
+    private function dispatchPostsRecommended(Collection $posts, bool $reset): void
+    {
+        $postIds = $posts->pluck('id')->toArray();
+
+        $this->dispatch('posts-recommended', postIds: $postIds, reset: $reset);
+    }
+    public function loadLikedPosts(): void
+    {
+        if (Auth::check()) {
+            $this->likedPostIds = Interaction::where('user_id', Auth::id())->where('interaction_type', InteractionTypeEnum::LIKE->value)->pluck('post_id')->toArray();
+        }
+    }
     public function mount()
     {
+        $this->loadLikedPosts();
         $this->loadPosts();
 
         if ($this->posts->isNotEmpty()) {
             $this->lastPostTimestamp = $this->posts->first()->published_at;
         }
+    }
+
+    public function toggleLike(int $postId, InteractionService $interactionService, InterestService $interestService): void
+    {
+        $userId = Auth::id();
+
+        if (in_array($postId, $this->likedPostIds)) {
+            // 1. Remove from the raw interactions ledger
+            $interactionService->removeInteraction($userId, $postId, InteractionTypeEnum::LIKE);
+            $interestService->updateInterest($postId, InteractionTypeEnum::LIKE->value, isPositiveInteraction: false);
+
+            // 3. Update local array state
+            $this->likedPostIds = array_diff($this->likedPostIds, [$postId]);
+        } else {
+            // --- LIKE LOGIC ---
+            // Run it through your single source of truth service
+            $interactionService->recordInteraction($userId, $postId, InteractionTypeEnum::LIKE);
+            $interestService->updateInterest($postId, InteractionTypeEnum::LIKE->value, isPositiveInteraction: true);
+            // Update local array state
+            $this->likedPostIds[] = $postId;
+        }
+
+        // Notify the stats widgets to instantly refresh with opacity drop
+        $this->dispatch('interest-updated');
     }
 
     public function checkForNewPosts()
@@ -32,7 +76,7 @@ new class extends Component {
             return;
         }
 
-        $newerPosts = Post::with(['users', 'category'])
+        $newerPosts = Post::with(['users', 'categories'])
             ->whereRaw('UNIX_TIMESTAMP(published_at) > ?', [$this->lastPostTimestamp])
             ->orderByDesc('published_at')
             ->get();
@@ -57,7 +101,7 @@ new class extends Component {
         $this->newPostId = null;
         $this->newPostsCount = 0;
 
-        $this->posts = Post::with(['users', 'category'])
+        $this->posts = Post::with(['users', 'categories'])
             ->latest('published_at')
             ->forPage($this->page, $this->perPage)
             ->get();
@@ -65,6 +109,7 @@ new class extends Component {
         if ($this->posts->isNotEmpty()) {
             $this->lastPostTimestamp = $this->posts->first()->published_at;
         }
+        $this->dispatchPostsRecommended($this->posts, true); // true = reset stats first
 
         $total = Post::count();
         $this->hasMore = $this->page * $this->perPage < $total;
@@ -77,11 +122,11 @@ new class extends Component {
 
         $this->posts = $userId
             ? $service->recommend($userId, $this->page, $this->perPage)
-            : Post::with(['users', 'category'])
+            : Post::with(['users', 'categories'])
                 ->latest('published_at')
                 ->forPage($this->page, $this->perPage)
                 ->get();
-
+        $this->dispatchPostsRecommended($this->posts, false); // false = don't reset stats
         $this->hasMore = $this->posts->count() === $this->perPage;
     }
 
@@ -98,7 +143,7 @@ new class extends Component {
 
         $olderPosts = $userId
             ? $service->recommend($userId, $this->page, $this->perPage)
-            : Post::with(['users', 'category'])
+            : Post::with(['users', 'categories'])
                 ->latest('published_at')
                 ->forPage($this->page, $this->perPage)
                 ->get();
@@ -109,6 +154,7 @@ new class extends Component {
             foreach ($olderPosts as $post) {
                 $this->posts->push($post);
             }
+            $this->dispatchPostsRecommended($olderPosts, false);
             $this->hasMore = $olderPosts->count() === $this->perPage;
         }
 
@@ -117,7 +163,7 @@ new class extends Component {
 
     public function onPostCreated($postId)
     {
-        $newPost = Post::with(['users', 'category'])->find($postId);
+        $newPost = Post::with(['users', 'categories'])->find($postId);
 
         if ($newPost) {
             $this->newPostId = $newPost->id;
@@ -241,11 +287,18 @@ new class extends Component {
                                     </h3>
                                 @endif
 
-                                <p
-                                   class="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+                                <p class="mt-1 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                                     {{ $post->content }}
                                 </p>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    @foreach ($post->categories as $category)
+                                        <span
+                                              class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                                            {{ $category->name }}
+                                        </span>
+                                    @endforeach
 
+                                </div>
                                 @if ($post->image_url)
                                     <div
                                          class="mt-3 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -267,10 +320,19 @@ new class extends Component {
                                                    name="arrow-path-rounded-square" />
                                         <span>Repost</span>
                                     </button>
-                                    <button class="flex items-center gap-1.5 text-xs transition hover:text-red-500">
-                                        <flux:icon class="h-4 w-4"
-                                                   name="heart" />
-                                        <span>Like</span>
+                                    @php
+                                        $isLiked = in_array($post->id, $likedPostIds);
+                                    @endphp
+                                    <button class="{{ $isLiked ? 'text-red-500 font-semibold' : 'text-zinc-500 hover:text-red-500 dark:text-zinc-400' }} group flex items-center gap-1.5 text-xs font-medium transition duration-200 focus:outline-none"
+                                            wire:click="toggleLike({{ $post->id }})"
+                                            wire:loading.attr="disabled">
+
+                                        {{-- Dynamic Heart Icon transformation --}}
+                                        <flux:icon class="{{ $isLiked ? 'text-red-500' : 'text-zinc-400 dark:text-zinc-500 group-hover:text-red-500' }} h-4 w-4 transform transition-transform duration-200 group-active:scale-125"
+                                                   name="heart"
+                                                   :variant="$isLiked ? 'solid' : 'outline'" />
+
+                                        <span>{{ $isLiked ? 'Liked' : 'Like' }}</span>
                                     </button>
                                 </div>
                             </div>

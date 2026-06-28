@@ -24,8 +24,23 @@ class DatabaseSeeder extends Seeder
         ]);
 
         User::factory()->create([
-            'name' => 'User',
-            'email' => 'user@gmail.com',
+            'name' => 'UserA',
+            'email' => 'usera@gmail.com',
+            'password' => 'password',
+        ]);
+        User::factory()->create([
+            'name' => 'UserB',
+            'email' => 'userb@gmail.com',
+            'password' => 'password',
+        ]);
+        User::factory()->create([
+            'name' => 'UserC',
+            'email' => 'userc@gmail.com',
+            'password' => 'password',
+        ]);
+        User::factory()->create([
+            'name' => 'UserD',
+            'email' => 'userd@gmail.com',
             'password' => 'password',
         ]);
 
@@ -34,5 +49,7 @@ class DatabaseSeeder extends Seeder
 
         // 4. Posts
         $this->call(PostSeeder::class);
+        // 5. Interactions
+        $this->call(InteractionSeeder::class);
     }
 }

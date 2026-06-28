@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 
 class InterActionService
 {
-    public static function interactWithPost(int $postId, string $interactionType)
+    public function recordInteraction(int $postId, string $interactionType)
     {
         Interaction::create([
             'user_id' => Auth::id(),
@@ -16,6 +16,13 @@ class InterActionService
             'interaction_type' => $interactionType,  // 'like' | 'comment' | 'share' | 'view' | 'post'
             'weight' => InteractionWeightEnum::forType($interactionType),
         ]);
+    }
 
+    public function removeInteraction(int $postId, string $interactionType): void
+    {
+        Interaction::where('user_id', '=', Auth::id(), 'and')
+            ->where('post_id', $postId)
+            ->where('interaction_type', $interactionType)
+            ->delete();
     }
 }

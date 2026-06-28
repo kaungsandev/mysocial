@@ -14,16 +14,25 @@ class PostSeeder extends Seeder
      */
     public function run(): void
     {
+        // the random seed for reproducibility
+        srand(12345);
+        fake()->seed(12345);
         $categories = Category::all();
         $users = User::all();
 
         Post::factory()
-            ->count(500)
-            ->recycle($categories)
+            ->count(100)
             ->create()
-            ->each(function (Post $post) use ($users) {
-                // Attach 1 to 3 random users to each post
-                $post->users()->attach($users->random(rand(1, 3)));
+            ->each(function (Post $post) use ($users, $categories) {
+                // Always attaches the same "random" categories
+                $post->categories()->attach(
+                    $categories->random(rand(1, 2))->pluck('id')->toArray()
+                );
+
+                // Always attaches the same "random" authors
+                $post->users()->attach(
+                    $users->random(1)->pluck('id')->toArray()
+                );
             });
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Interaction;
+use App\Models\Interest;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -21,6 +22,10 @@ class RecommendationService
         // 1. Build the current user's category interest vector
         $userVector = $this->buildUserVector($userId);
 
+        if ($userVector->isEmpty()) {
+            // Phase 1: no interactions yet, use onboarding interests
+            $userVector = $this->buildVectorFromInterests($userId);
+        }
         if ($userVector->isEmpty()) {
             // Cold start: no interactions yet, return latest posts
             return $this->fallback($userId, $offset, $perPage);
@@ -75,7 +80,7 @@ class RecommendationService
         $recommendedPostIds = $scoredPosts->keys()->slice($offset, $perPage);
 
         // 6. Fetch the actual posts, preserving score order
-        $posts = Post::with(['users', 'category'])
+        $posts = Post::with(['users', 'categories'])
             ->whereIn('id', $recommendedPostIds)
             ->get()
             ->sortBy(fn ($post) => $recommendedPostIds->search($post->id))
@@ -86,7 +91,7 @@ class RecommendationService
             $needed = $perPage - $posts->count();
             $existingIds = $posts->pluck('id')->merge($seenPostIds);
 
-            $fallbackPosts = Post::with(['users', 'category'])
+            $fallbackPosts = Post::with(['users', 'categories'])
                 ->whereNotIn('id', $existingIds)
                 ->latest('published_at')
                 ->take($needed)
@@ -105,10 +110,17 @@ class RecommendationService
     private function buildUserVector(int $userId): Collection
     {
         return Interaction::where('user_id', $userId)
-            ->join('posts', 'interactions.post_id', '=', 'posts.id')
-            ->select('posts.category_id', DB::raw('SUM(interactions.weight) as total_weight'))
-            ->groupBy('posts.category_id')
-            ->pluck('total_weight', 'category_id')
+            ->join('category_post', 'interactions.post_id', '=', 'category_post.post_id')
+            ->select('category_post.category_id', DB::raw('SUM(interactions.weight) as total_weight'))
+            ->groupBy('category_post.category_id')
+            ->pluck('total_weight', 'category_post.category_id')
+            ->map(fn ($w) => (float) $w);
+    }
+
+    private function buildVectorFromInterests(int $userId): Collection
+    {
+        return Interest::where('user_id', $userId)
+            ->pluck('weight', 'category_id')
             ->map(fn ($w) => (float) $w);
     }
 
@@ -150,7 +162,7 @@ class RecommendationService
     {
         $seenPostIds = Interaction::where('user_id', $userId)->pluck('post_id');
 
-        return Post::with(['users', 'category'])
+        return Post::with(['users', 'categories'])
             ->whereNotIn('id', $seenPostIds)
             ->latest('published_at')
             ->skip($offset)
