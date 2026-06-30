@@ -3,6 +3,7 @@
 use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\Category;
+use App\Enums\InteractionWeightEnum;
 
 new class extends Component {
     use WithPagination;
@@ -39,7 +40,7 @@ new class extends Component {
         }
 
         $user = auth()->user();
-        $user->interests()->syncWithPivotValues($this->selected, ['weight' => 1]);
+        $user->interests()->syncWithPivotValues($this->selected, ['weight' => InteractionWeightEnum::LIKE->value]);
         $user->new_account = false;
         $user->save();
 
@@ -77,14 +78,14 @@ new class extends Component {
                         type="button"
                         wire:click="toggle({{ $category->id }})"
                         @class([
-                            'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20 hover:bg-blue-700' => $this->isSelected(
+                            'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20 hover:bg-blue-700 dark:bg-blue-500 dark:border-blue-500 dark:hover:bg-blue-400' => $this->isSelected(
                                 $category->id),
-                            'bg-slate-100 text-slate-700 border-slate-300 hover:border-blue-500 hover:text-slate-900 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 dark:hover:text-white' => !$this->isSelected(
+                            'bg-white text-slate-700 border-slate-300 hover:border-blue-500 hover:bg-slate-50 hover:text-slate-900 dark:bg-slate-900 dark:text-slate-200 dark:border-slate-700 dark:hover:border-blue-400 dark:hover:bg-slate-800 dark:hover:text-white' => !$this->isSelected(
                                 $category->id),
                         ])>
                     @if ($this->isSelected($category->id))
                         <span
-                              class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-white">
+                              class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-blue-500 dark:text-white">
                             <svg class="h-4 w-4"
                                  xmlns="http://www.w3.org/2000/svg"
                                  viewBox="0 0 20 20"
@@ -115,12 +116,12 @@ new class extends Component {
                 </span> / 5
             </p>
 
-            <button class="{{ $this->canContinue() ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer' : 'bg-gray-800 text-gray-500 cursor-not-allowed' }} rounded-full px-6 py-3 font-semibold transition-all duration-200"
+            <button class="{{ $this->canContinue() ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer' : 'bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-400' }} rounded-full px-6 py-3 font-semibold transition-all duration-200"
                     wire:click="submit"
                     @disabled(!$this->canContinue())
                     @class([
                         'bg-blue-600 hover:bg-blue-700 text-white' => $this->canContinue(),
-                        'bg-gray-800 text-gray-500 cursor-not-allowed' => !$this->canContinue(),
+                        'bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-400' => !$this->canContinue(),
                     ])>
                 Go to Home
             </button>

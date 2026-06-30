@@ -73,9 +73,9 @@ class RecommendationService
             ->groupBy('post_id')
             ->map(function ($interactions) use ($similarities) {
                 // Score = sum of similarity weights of users who touched this post
-                return $interactions->sum(fn($i) => $similarities->get($i->user_id, 0));
+                return $interactions->sum(fn ($i) => $similarities->get($i->user_id, 0));
             })
-            ->sortDesc();
+            ->sortDesc(); // final results sorted by score and the post_id will be the key
 
         $recommendedPostIds = $scoredPosts->keys()->slice($offset, $perPage);
 
@@ -83,7 +83,7 @@ class RecommendationService
         $posts = Post::with(['users', 'categories'])
             ->whereIn('id', $recommendedPostIds)
             ->get()
-            ->sortBy(fn($post) => $recommendedPostIds->search($post->id))
+            ->sortBy(fn ($post) => $recommendedPostIds->search($post->id))
             ->values();
 
         // 7. Pad with fallback if we don't have enough
@@ -114,14 +114,14 @@ class RecommendationService
             ->select('category_post.category_id', DB::raw('SUM(interactions.weight) as total_weight'))
             ->groupBy('category_post.category_id')
             ->pluck('total_weight', 'category_post.category_id')
-            ->map(fn($w) => (float) $w);
+            ->map(fn ($w) => (float) $w);
     }
 
     private function buildVectorFromInterests(int $userId): Collection
     {
         return Interest::where('user_id', $userId)
             ->pluck('weight', 'category_id')
-            ->map(fn($w) => (float) $w);
+            ->map(fn ($w) => (float) $w);
     }
 
     /**
@@ -145,8 +145,8 @@ class RecommendationService
             return 0.0;
         }
 
-        $magA = sqrt($userVector->sum(fn($value) => $value * $value));
-        $magB = sqrt($otherUserVector->sum(fn($value) => $value * $value));
+        $magA = sqrt($userVector->sum(fn ($value) => $value * $value));
+        $magB = sqrt($otherUserVector->sum(fn ($value) => $value * $value));
 
         if ($magA === 0.0 || $magB === 0.0) {
             return 0.0;

@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // 1. Categories
-        $this->call(CategorySeeder::class);
+        // $this->call(CategorySeeder::class);
 
         // 2. Specialized Users
         User::factory()->create([
@@ -44,12 +44,12 @@ class DatabaseSeeder extends Seeder
             'password' => 'password',
         ]);
 
-        // 3. More users to reach 100
-        User::factory()->count(98)->create();
+        // // 3. More users to reach 100
+        // User::factory()->count(98)->create();
 
-        // 4. Posts
-        $this->call(PostSeeder::class);
-        // 5. Interactions
-        $this->call(InteractionSeeder::class);
+        // // 4. Posts
+        // $this->call(PostSeeder::class);
+        // // 5. Interactions
+        // $this->call(InteractionSeeder::class);
     }
 }

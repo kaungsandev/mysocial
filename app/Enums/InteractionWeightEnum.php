@@ -4,7 +4,7 @@ namespace App\Enums;
 
 enum InteractionWeightEnum: int
 {
-    case VIEW = 1;
+    case VIEW = 2;
     case LIKE = 3;
     case COMMENT = 5;
     case SHARE = 4;
@@ -13,12 +13,12 @@ enum InteractionWeightEnum: int
     public static function forType(string $type): int
     {
         return match ($type) {
-            'view' => self::VIEW->value,
+            'view' => self::VIEW->value / 10,
             'like' => self::LIKE->value,
             'comment' => self::COMMENT->value,
             'share' => self::SHARE->value,
             'post' => self::POST->value,
-            default => 1,
+            default => 1 / 10,
         };
     }
 }

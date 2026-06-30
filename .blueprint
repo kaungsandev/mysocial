@@ -19,6 +19,54 @@ created:
 updated:
     - routes/web.php
 models:
-    Category: { name: string, slug: string, relationships: { hasMany: Post } }
-    Post: { category_id: 'id foreign', title: string, content: longtext, image_url: 'string nullable', published_at: 'timestamp nullable', relationships: { belongsTo: Category, belongsToMany: User } }
-    Interaction: { user_id: 'id foreign', post_id: 'id foreign', type: 'enum:view,like,share,rate', weight: 'integer default:1', timestamps: timestamps }
+    User:
+        name: string
+        email: string unique
+        email_verified_at: timestamp nullable
+        password: string
+        remember_token: string nullable
+        new_account: boolean default:true
+        relationships:
+            hasMany:
+                - Interaction
+                - Interest
+            belongsToMany:
+                - Category through: interests withPivot: [weight]
+                - Post
+    Category:
+        name: string
+        slug: string
+        relationships:
+            belongsToMany:
+                - User through: interests withPivot: [weight]
+                - Post through: category_post
+    Post:
+        title: string
+        content: longtext
+        image_url: string nullable
+        published_at: timestamp nullable
+        relationships:
+            hasMany:
+                - Interaction
+            belongsToMany:
+                - Category through: category_post
+                - User
+    Interaction:
+        user_id: id foreign
+        post_id: id foreign
+        interaction_type: string
+        weight: integer default:1
+        timestamps: timestamps
+        relationships:
+            belongsTo:
+                - User
+                - Post
+    Interest:
+        user_id: id foreign
+        category_id: id foreign
+        weight: decimal(3,1) default:0
+        timestamps: timestamps
+        relationships:
+            belongsTo:
+                - User
+                - Category

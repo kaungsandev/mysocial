@@ -3,7 +3,7 @@
 ])
 
 @if ($sidebar)
-    <flux:sidebar.brand name="Laravel Starter Kit"
+    <flux:sidebar.brand name="MySocial"
                         {{ $attributes }}>
         <x-slot class="bg-accent-content text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-md"
                 name="logo">
@@ -11,7 +11,7 @@
         </x-slot>
     </flux:sidebar.brand>
 @else
-    <flux:brand name="Laravel Starter Kit"
+    <flux:brand name="MySocial"
                 {{ $attributes }}>
         <x-slot class="bg-accent-content text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-md"
                 name="logo">
