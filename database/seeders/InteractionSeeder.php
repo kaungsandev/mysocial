@@ -31,19 +31,20 @@ class InteractionSeeder extends Seeder
         // --- DESIGNING A PREDETERMINED SCENARIO FOR YOUR SHOWCASE ---
         // Let's force User 1 and User 2 to have highly overlapping tastes (The "Peer" Cluster)
         // They both highly engage with Posts 1, 2, and 3.
-        $targetPosts = $posts->take(3);
-        foreach ([$users->find(1), $users->find(2)] as $user) {
-            if ($user) {
-                foreach ($targetPosts as $post) {
-                    Interaction::create([
-                        'user_id' => $user->id,
-                        'post_id' => $post->id,
-                        'interaction_type' => InteractionTypeEnum::LIKE->value,
-                        'weight' => InteractionWeightEnum::forType(InteractionTypeEnum::LIKE->value),
-                    ]);
-                }
-            }
+        $targetPostsforA = $posts->take(3);
+        $targetPostsforB = $posts->take(3);
+        $targetUserA = User::where('email', '=', 'usera@gmail.com', 'and')->first();
+        $targetUserB = User::where('email', '=', 'userb@gmail.com', 'and')->first();
+
+        foreach ($targetPostsforA as $post) {
+            Interaction::create([
+                'user_id' => $targetUserA->id,
+                'post_id' => $post->id,
+                'interaction_type' => InteractionTypeEnum::LIKE->value,
+                'weight' => InteractionWeightEnum::forType(InteractionTypeEnum::LIKE->value),
+            ]);
         }
+
 
         // Now, User 1 also likes Post 4.
         // Because User 2 is heavily matched with User 1, your CF algorithm should recommend Post 4 to User 2!

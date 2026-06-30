@@ -6,33 +6,52 @@ use App\Models\Category;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-
+use App\Services\InterActionService;
 class PostSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
-    public function run(): void
+    private const POSTS_PER_CATEGORY = 50;
+
+    public function run(InterActionService $interActionService): void
     {
-        // the random seed for reproducibility
         srand(12345);
         fake()->seed(12345);
+
         $categories = Category::all();
         $users = User::all();
 
-        Post::factory()
-            ->count(100)
-            ->create()
-            ->each(function (Post $post) use ($users, $categories) {
-                // Always attaches the same "random" categories
-                $post->categories()->attach(
-                    $categories->random(rand(1, 2))->pluck('id')->toArray()
-                );
+        $posts = collect();
 
-                // Always attaches the same "random" authors
-                $post->users()->attach(
-                    $users->random(1)->pluck('id')->toArray()
+        // Create 50 posts for every category.
+        foreach ($categories as $category) {
+
+            $createdPosts = Post::factory()
+                ->count(self::POSTS_PER_CATEGORY)
+                ->create();
+
+            foreach ($createdPosts as $post) {
+                $post->categories()->attach($category->id);
+                $randomUser = $users->random();
+                $post->users()->attach($randomUser->id);
+                $interActionService->recordInteraction(
+                    postId: $post->id,
+                    userId: $randomUser->id,
+                    interactionType: \App\Enums\InteractionTypeEnum::POST->value
                 );
-            });
+            }
+
+            $posts = $posts->merge($createdPosts);
+        }
+
+        // Give about 30% of posts a second category.
+        foreach ($posts->random((int) ($posts->count() * 0.3)) as $post) {
+
+            $currentCategoryId = $post->categories()->value('category_id');
+
+            $secondCategory = $categories
+                ->where('id', '!=', $currentCategoryId)
+                ->random();
+
+            $post->categories()->attach($secondCategory->id);
+        }
     }
 }

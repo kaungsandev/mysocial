@@ -8,10 +8,10 @@ use Illuminate\Support\Facades\Auth;
 
 class InterActionService
 {
-    public function recordInteraction(int $postId, string $interactionType)
+    public function recordInteraction(int $postId, int|null $userId, string $interactionType)
     {
         Interaction::create([
-            'user_id' => Auth::id(),
+            'user_id' => $userId ?? Auth::id(),
             'post_id' => $postId,
             'interaction_type' => $interactionType,  // 'like' | 'comment' | 'share' | 'view' | 'post'
             'weight' => InteractionWeightEnum::forType($interactionType),

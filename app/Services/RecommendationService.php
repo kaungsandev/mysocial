@@ -43,12 +43,12 @@ class RecommendationService
         // 3. Compute cosine similarity with each other user
         $similarities = collect();
 
-        foreach ($otherUserIds as $otherId) {
-            $otherVector = $this->buildUserVector($otherId);
+        foreach ($otherUserIds as $otherUserId) {
+            $otherVector = $this->buildUserVector($otherUserId);
             $sim = $this->cosineSimilarity($userVector, $otherVector);
 
             if ($sim > 0) {
-                $similarities->put($otherId, $sim);
+                $similarities->put($otherUserId, $sim);
             }
         }
 
@@ -73,7 +73,7 @@ class RecommendationService
             ->groupBy('post_id')
             ->map(function ($interactions) use ($similarities) {
                 // Score = sum of similarity weights of users who touched this post
-                return $interactions->sum(fn ($i) => $similarities->get($i->user_id, 0));
+                return $interactions->sum(fn($i) => $similarities->get($i->user_id, 0));
             })
             ->sortDesc();
 
@@ -83,7 +83,7 @@ class RecommendationService
         $posts = Post::with(['users', 'categories'])
             ->whereIn('id', $recommendedPostIds)
             ->get()
-            ->sortBy(fn ($post) => $recommendedPostIds->search($post->id))
+            ->sortBy(fn($post) => $recommendedPostIds->search($post->id))
             ->values();
 
         // 7. Pad with fallback if we don't have enough
@@ -114,14 +114,14 @@ class RecommendationService
             ->select('category_post.category_id', DB::raw('SUM(interactions.weight) as total_weight'))
             ->groupBy('category_post.category_id')
             ->pluck('total_weight', 'category_post.category_id')
-            ->map(fn ($w) => (float) $w);
+            ->map(fn($w) => (float) $w);
     }
 
     private function buildVectorFromInterests(int $userId): Collection
     {
         return Interest::where('user_id', $userId)
             ->pluck('weight', 'category_id')
-            ->map(fn ($w) => (float) $w);
+            ->map(fn($w) => (float) $w);
     }
 
     /**
@@ -131,13 +131,13 @@ class RecommendationService
      * ∣∣A∣∣= √(A1² + A2² + ...) Length of vector A
      * ∣∣B∣∣= √(B1² + B2² + ...) Length of vector B
      */
-    private function cosineSimilarity(Collection $a, Collection $b): float
+    private function cosineSimilarity(Collection $userVector, Collection $otherUserVector): float
     {
         // Dot product over shared keys
         $dot = 0.0;
-        foreach ($a as $key => $val) {
-            if ($b->has($key)) {
-                $dot += $val * $b->get($key);
+        foreach ($userVector as $key => $val) {
+            if ($otherUserVector->has($key)) {
+                $dot += $val * $otherUserVector->get($key);
             }
         }
 
@@ -145,8 +145,8 @@ class RecommendationService
             return 0.0;
         }
 
-        $magA = sqrt($a->sum(fn ($v) => $v * $v));
-        $magB = sqrt($b->sum(fn ($v) => $v * $v));
+        $magA = sqrt($userVector->sum(fn($value) => $value * $value));
+        $magB = sqrt($otherUserVector->sum(fn($value) => $value * $value));
 
         if ($magA === 0.0 || $magB === 0.0) {
             return 0.0;

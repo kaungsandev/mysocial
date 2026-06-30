@@ -82,7 +82,7 @@ new class extends Component {
             $post->categories()->sync($syncIds);
 
             $post->users()->attach(Auth::id());
-            $interactionService->recordInteraction($post->id, \App\Enums\InteractionTypeEnum::POST->value);
+            $interactionService->recordInteraction(postId: $post->id, userId: Auth::id(), interactionType: \App\Enums\InteractionTypeEnum::POST->value);
             $interestService->updateInterest($post->id, \App\Enums\InteractionTypeEnum::POST->value, isPositiveInteraction: true);
 
             \Illuminate\Support\Facades\DB::commit();
@@ -134,28 +134,21 @@ new class extends Component {
 ?>
 
 <div class="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
-    <flux:heading class="mb-3"
-                  size="md">What's on your mind?</flux:heading>
+    <flux:heading class="mb-3" size="md">What's on your mind?</flux:heading>
 
     @if (session()->has('message'))
-        <div x-data="{ show: true }"
-             x-show="show"
-             x-init="setTimeout(() => show = false, 3000)"
-             x-transition:leave="transition ease-in duration-300"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0">
-            <flux:callout class="mb-4"
-                          variant="success">
+        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+            x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0">
+            <flux:callout class="mb-4" variant="success">
                 {{ session('message') }}
             </flux:callout>
         </div>
     @endif
 
-    <form class="space-y-3"
-          wire:submit="save">
+    <form class="space-y-3" wire:submit="save">
         <flux:field>
-            <flux:input wire:model="title"
-                        placeholder="Title" />
+            <flux:input wire:model="title" placeholder="Title" />
             <flux:error name="title" />
         </flux:field>
         <div class="space-y-2">
@@ -164,28 +157,28 @@ new class extends Component {
             </label>
 
             <div class="relative">
-                <flux:input type="text"
-                            wire:model.live.debounce.250ms="category_search"
-                            placeholder="Type a word to search or add (e.g. drama, movie)..." />
+                <flux:input type="text" wire:model.live.debounce.250ms="category_search"
+                    placeholder="Type a word to search or add (e.g. drama, movie)..." />
 
                 @if (!empty($category_search))
                     <div
-                         class="absolute z-10 mt-1 max-h-60 w-full overflow-hidden overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                        class="absolute z-10 mt-1 max-h-60 w-full overflow-hidden overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                         <div class="space-y-0.5 p-1.5">
                             @forelse($searchResults as $result)
                                 @php
                                     // Check if item is already active in selected bucket
                                     $isSelected = collect($selected_categories)->contains('name', $result['name']);
                                 @endphp
-                                <button class="{{ $isSelected ? 'bg-blue-500 text-white' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700' }} flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors"
-                                        type="button"
-                                        wire:click="toggleCategory('{{ $result['id'] }}', '{{ $result['name'] }}')">
+                                <button
+                                    class="{{ $isSelected ? 'bg-blue-500 text-white' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700' }} flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors"
+                                    type="button"
+                                    wire:click="toggleCategory('{{ $result['id'] }}', '{{ $result['name'] }}')">
                                     <span class="font-medium">
                                         #{{ strtolower($result['name']) }}
                                     </span>
                                     @if ($result['is_new'])
                                         <span
-                                              class="{{ $isSelected ? 'bg-blue-600 text-white' : 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' }} rounded px-2 py-0.5 text-xs">
+                                            class="{{ $isSelected ? 'bg-blue-600 text-white' : 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' }} rounded px-2 py-0.5 text-xs">
                                             Create New Category
                                         </span>
                                     @elseif($isSelected)
@@ -203,14 +196,13 @@ new class extends Component {
             </div>
             @if (count($selected_categories) > 0)
                 <div
-                     class="mb-2 flex flex-wrap gap-2 rounded-lg border border-dashed border-gray-200 bg-gray-50/50 p-2 dark:border-gray-700 dark:bg-gray-900/30">
+                    class="mb-2 flex flex-wrap gap-2 rounded-lg border border-dashed border-gray-200 bg-gray-50/50 p-2 dark:border-gray-700 dark:bg-gray-900/30">
                     @foreach ($selected_categories as $item)
                         <span
-                              class="inline-flex items-center gap-1.5 rounded-full border border-blue-200/60 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition-all dark:border-blue-800/60 dark:bg-blue-900/40 dark:text-blue-300">
+                            class="inline-flex items-center gap-1.5 rounded-full border border-blue-200/60 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition-all dark:border-blue-800/60 dark:bg-blue-900/40 dark:text-blue-300">
                             #{{ strtolower($item['name']) }}
-                            <button class="font-bold hover:text-red-500 focus:outline-none"
-                                    type="button"
-                                    wire:click="removeCategory('{{ $item['name'] }}')">
+                            <button class="font-bold hover:text-red-500 focus:outline-none" type="button"
+                                wire:click="removeCategory('{{ $item['name'] }}')">
                                 &times;
                             </button>
                         </span>
@@ -224,23 +216,17 @@ new class extends Component {
 
         <flux:field>
             <flux:label>Body</flux:label>
-            <flux:textarea wire:model="content"
-                           rows="3"
-                           placeholder="What's happening?" />
+            <flux:textarea wire:model="content" rows="3" placeholder="What's happening?" />
             <flux:error name="content" />
         </flux:field>
 
         <flux:field>
             <flux:label>Image URL (optional)</flux:label>
-            <flux:input type="url"
-                        wire:model="image_url"
-                        placeholder="https://" />
+            <flux:input type="url" wire:model="image_url" placeholder="https://" />
             <flux:error name="image_url" />
         </flux:field>
         <div class="flex justify-end">
-            <flux:button type="submit"
-                         variant="primary"
-                         size="sm">Post</flux:button>
+            <flux:button type="submit" variant="primary" size="sm">Post</flux:button>
         </div>
     </form>
 </div>
