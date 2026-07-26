@@ -19,20 +19,16 @@ class RecommendationService
     {
         $offset = ($page - 1) * $perPage;
 
-        // 1. Build the current user's category interest vector
-        $userVector = $this->buildUserVector($userId);
+        // 1. Build the current user's item interest vector
+        $userItemVector = $this->buildUserItemVector($userId);
 
-        if ($userVector->isEmpty()) {
-            // Phase 1: no interactions yet, use onboarding interests
-            $userVector = $this->buildVectorFromInterests($userId);
-        }
-        if ($userVector->isEmpty()) {
+        if ($userItemVector->isEmpty()) {
             // Cold start: no interactions yet, return latest posts
             return $this->fallback($userId, $offset, $perPage);
         }
 
         // 2. Get all other users who have interactions
-        $otherUserIds = Interaction::where('user_id', '!=', $userId)
+        $otherUserIds = Interaction::where('user_id', '!=', $userId, 'and')
             ->distinct()
             ->pluck('user_id');
 
@@ -44,8 +40,8 @@ class RecommendationService
         $similarities = collect();
 
         foreach ($otherUserIds as $otherUserId) {
-            $otherVector = $this->buildUserVector($otherUserId);
-            $sim = $this->cosineSimilarity($userVector, $otherVector);
+            $otherVector = $this->buildUserItemVector($otherUserId);
+            $sim = $this->cosineSimilarity($userItemVector, $otherVector);
 
             if ($sim > 0) {
                 $similarities->put($otherUserId, $sim);
@@ -104,19 +100,19 @@ class RecommendationService
     }
 
     /**
-     * Build a weighted category vector for a user based on their interactions.
-     * Vector shape: [ category_id => total_weight ]
+     * Build a weighted item vector for a user based on their interactions.
+     * Vector shape: [ post_id => total_weight ]
      */
-    private function buildUserVector(int $userId): Collection
+    private function buildUserItemVector(int $userId): Collection
     {
-        return Interaction::where('user_id', $userId)
-            ->join('category_post', 'interactions.post_id', '=', 'category_post.post_id')
-            ->select('category_post.category_id', DB::raw('SUM(interactions.weight) as total_weight'))
-            ->groupBy('category_post.category_id')
-            ->pluck('total_weight', 'category_post.category_id')
+        return Interaction::where('user_id', '=', $userId, 'and')
+            ->select('post_id', DB::raw('SUM(weight) as total_weight'))
+            ->groupBy('post_id')
+            ->pluck('total_weight', 'post_id')
             ->map(fn ($w) => (float) $w);
     }
 
+    // Will use later in CBF
     private function buildVectorFromInterests(int $userId): Collection
     {
         return Interest::where('user_id', $userId)
