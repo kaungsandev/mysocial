@@ -6,11 +6,14 @@ use App\Models\Interaction;
 use App\Models\Interest;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\Concerns\CalculatesCosineSimilarity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class RecommendationService
 {
+    use CalculatesCosineSimilarity;
+
     /**
      * Get 10 recommended posts for a user at a given page offset.
      * Falls back to latest posts if not enough CF results.
@@ -118,37 +121,6 @@ class RecommendationService
         return Interest::where('user_id', $userId)
             ->pluck('weight', 'category_id')
             ->map(fn ($w) => (float) $w);
-    }
-
-    /**
-     * Cosine similarity between two sparse vectors (associative collections).
-     * cosine similarity = A⋅B​ / ∣∣A∣∣×∣∣B∣∣
-     * A⋅B = (A1​×B1​)+(A2​×B2​)+... Multiply matching ratings and sum them
-     * ∣∣A∣∣= √(A1² + A2² + ...) Length of vector A
-     * ∣∣B∣∣= √(B1² + B2² + ...) Length of vector B
-     */
-    private function cosineSimilarity(Collection $userVector, Collection $otherUserVector): float
-    {
-        // Dot product over shared keys
-        $dot = 0.0;
-        foreach ($userVector as $key => $val) {
-            if ($otherUserVector->has($key)) {
-                $dot += $val * $otherUserVector->get($key);
-            }
-        }
-
-        if ($dot === 0.0) {
-            return 0.0;
-        }
-
-        $magA = sqrt($userVector->sum(fn ($value) => $value * $value));
-        $magB = sqrt($otherUserVector->sum(fn ($value) => $value * $value));
-
-        if ($magA === 0.0 || $magB === 0.0) {
-            return 0.0;
-        }
-
-        return $dot / ($magA * $magB);
     }
 
     /**
