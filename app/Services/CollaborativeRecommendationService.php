@@ -10,7 +10,7 @@ use App\Services\Concerns\CalculatesCosineSimilarity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-class RecommendationService
+class CollaborativeRecommendationService
 {
     use CalculatesCosineSimilarity;
 

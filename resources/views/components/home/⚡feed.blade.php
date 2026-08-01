@@ -6,7 +6,8 @@ use App\Models\Interaction;
 use App\Models\Interest;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use App\Services\RecommendationService;
+use App\Services\CollaborativeRecommendationService;
+use App\Services\ContentBasedRecommendationService;
 use App\Services\InterActionService;
 use App\Services\InterestService;
 use App\Enums\InteractionTypeEnum;
@@ -31,6 +32,12 @@ new class extends Component {
 
         $this->dispatch('posts-recommended', postIds: $postIds, reset: $reset);
     }
+
+    private function resolveRecommender(): CollaborativeRecommendationService|ContentBasedRecommendationService
+    {
+        return session('recommendation_algorithm') === 'content' ? app(ContentBasedRecommendationService::class) : app(CollaborativeRecommendationService::class);
+    }
+
     public function loadLikedPosts(): void
     {
         if (Auth::check()) {
@@ -103,7 +110,7 @@ new class extends Component {
         $this->newPostId = null;
         $this->newPostsCount = 0;
 
-        $service = app(RecommendationService::class);
+        $service = $this->resolveRecommender();
         $userId = auth()->id();
         $this->posts = $userId
             ? $service->recommend($userId, $this->page, $this->perPage)
@@ -124,7 +131,7 @@ new class extends Component {
     public function loadPosts()
     {
         $userId = auth()->id();
-        $service = app(RecommendationService::class);
+        $service = $this->resolveRecommender();
 
         $this->posts = $userId
             ? $service->recommend($userId, $this->page, $this->perPage)
@@ -151,7 +158,7 @@ new class extends Component {
         $this->loading = true;
         $this->page++;
         $userId = auth()->id();
-        $service = app(RecommendationService::class);
+        $service = $this->resolveRecommender();
 
         $olderPosts = $userId
             ? $service->recommend($userId, $this->page, $this->perPage)

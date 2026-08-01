@@ -13,6 +13,7 @@ class Logout
     public function __invoke()
     {
         Auth::guard('web')->logout();
+        Session::forget(['recommendation_algorithm', 'algorithm_selected_at']); // explicit, though invalidate() below also wipes it
 
         Session::invalidate();
         Session::regenerateToken();
