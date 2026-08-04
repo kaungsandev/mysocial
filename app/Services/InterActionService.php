@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 
 class InterActionService
 {
-    public function recordInteraction(int $postId, int|null $userId, string $interactionType)
+    public function recordInteraction(int $postId, ?int $userId, string $interactionType)
     {
         Interaction::create([
             'user_id' => $userId ?? Auth::id(),

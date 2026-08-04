@@ -11,10 +11,20 @@ use App\Services\ContentBasedRecommendationService;
 use App\Services\InterActionService;
 use App\Services\InterestService;
 use App\Enums\InteractionTypeEnum;
+use Livewire\Attributes\On;
 
 new class extends Component {
     public Collection $posts;
     public array $likedPostIds = [];
+    public array $sharedPostIds = [];
+
+    public ?int $currentSelectedPostId = null;
+    public bool $showReplyModal = false;
+    public string $comment = '';
+
+    public ?Post $selectedPost = null;
+    public Collection $selectedPostInteractions;
+    public bool $showPostModal = false;
 
     public ?int $newPostId = null;
     public int $page = 1;
@@ -67,17 +77,37 @@ new class extends Component {
             $this->likedPostIds = array_diff($this->likedPostIds, [$postId]);
         } else {
             // --- LIKE LOGIC ---
-            // Run it through your single source of truth service
             $interactionService->recordInteraction(userId: $userId, postId: $postId, interactionType: InteractionTypeEnum::LIKE->value);
             $interestService->updateInterest($postId, InteractionTypeEnum::LIKE->value, isPositiveInteraction: true);
             // Update local array state
             $this->likedPostIds[] = $postId;
         }
-
+        $this->dispatch('interaction-updated-for-selectedPost', postId: $postId);
         // Notify the stats widgets to instantly refresh with opacity drop
         $this->dispatch('interest-updated');
     }
 
+    public function sharePost(int $postId, InteractionService $interactionService, InterestService $interestService): void
+    {
+        $userId = Auth::id();
+
+        if (in_array($postId, $this->sharedPostIds)) {
+            // 1. Remove from the raw interactions ledger
+            $interactionService->removeInteraction($postId, InteractionTypeEnum::SHARE->value);
+            $interestService->updateInterest($postId, InteractionTypeEnum::SHARE->value, isPositiveInteraction: false);
+
+            // 3. Update local array state
+            $this->sharedPostIds = array_diff($this->sharedPostIds, [$postId]);
+        } else {
+            // --- LIKE LOGIC ---
+            $interactionService->recordInteraction(userId: $userId, postId: $postId, interactionType: InteractionTypeEnum::SHARE->value);
+            $interestService->updateInterest($postId, InteractionTypeEnum::SHARE->value, isPositiveInteraction: true);
+            // Update local array state
+            $this->sharedPostIds[] = $postId;
+        }
+
+        $this->dispatch('interaction-updated-for-selectedPost', postId: $postId);
+    }
     public function checkForNewPosts()
     {
         if (!$this->lastPostTimestamp) {
@@ -227,10 +257,288 @@ new class extends Component {
 
         $this->dispatch('scroll-to-top');
     }
+    public function openReplyModal(int $postId): void
+    {
+        $this->showReplyModal = true;
+        $this->currentSelectedPostId = $postId;
+    }
+    public function closeReplyModal(): void
+    {
+        $this->showReplyModal = false;
+        $this->reset('comment');
+        $this->reset('currentSelectedPostId');
+    }
+    public function createComment(?int $postId = null): void
+    {
+        $this->validate([
+            'comment' => ['required', 'string', 'max:1000'],
+        ]);
+        \App\Models\Comment::create([
+            'user_id' => auth()->id(),
+            'post_id' => $postId ?? $this->currentSelectedPostId,
+            'content' => $this->comment,
+        ]);
+        $interactionService = app(InterActionService::class);
+        $interactionService->recordInteraction(userId: auth()->id(), postId: $postId ?? $this->currentSelectedPostId, interactionType: InteractionTypeEnum::COMMENT->value);
+        $this->dispatch('interaction-updated-for-selectedPost', postId: $postId ?? $this->currentSelectedPostId);
+        $this->reset('comment');
+        $this->reset('currentSelectedPostId');
+        $this->showReplyModal = false;
+    }
+    public function viewPost(int $postId): void
+    {
+        $this->selectedPost = Post::with(['users', 'categories', 'comments.user'])->findOrFail($postId);
+        $this->selectedPostInteractions = Interaction::with(['user'])
+            ->where('post_id', $postId)
+            ->get();
+        $this->showPostModal = true;
+    }
+    #[On('interaction-updated-for-selectedPost')]
+    public function updateSelectedPostInteractions(int $postId): void
+    {
+        if ($this->selectedPost && $this->selectedPost->id === $postId) {
+            $this->selectedPostInteractions = Interaction::with(['user'])
+                ->where('post_id', $postId)
+                ->get();
+        }
+    }
 };
 ?>
 
 <div class="flex h-full flex-col">
+    {{-- comment box modal --}}
+    <flux:modal wire:model="showReplyModal">
+        <div class="space-y-4">
+            <h2 class="text-lg font-semibold">Write a Reply</h2>
+
+            <flux:textarea wire:model="comment"
+                           placeholder="Write your reply..." />
+
+            <div class="flex justify-end gap-2">
+                <flux:button variant="ghost"
+                             wire:click="closeReplyModal">
+                    Cancel
+                </flux:button>
+
+                <flux:button wire:click="createComment">
+                    Comment
+                </flux:button>
+            </div>
+        </div>
+    </flux:modal>
+    {{-- full post detail modal --}}
+    <flux:modal class="max-w-3xl"
+                wire:model="showPostModal">
+
+        @if ($selectedPost)
+
+            <div class="flex max-h-[85vh] flex-col">
+
+                {{-- Header --}}
+                <div class="flex items-start justify-between border-b border-zinc-200 pb-4 dark:border-zinc-700">
+
+                    <div class="min-w-0">
+                        <div class="font-semibold">
+                            {{ $selectedPost->users->first()?->name ?? 'Anonymous' }}
+                        </div>
+
+                        <div class="text-sm text-zinc-500">
+                            {{ $this->formatTimeForHumans($selectedPost->published_at) }}
+                        </div>
+                    </div>
+
+                    {{-- <flux:button variant="ghost"
+                                 icon="x-mark"
+                                 wire:click="$set('showPostModal', false)" /> --}}
+
+                </div>
+
+                {{-- Scrollable Body --}}
+                <div class="mt-5 flex-1 overflow-y-auto pr-1">
+
+                    {{-- Title --}}
+                    @if ($selectedPost->title)
+                        <h2 class="text-xl font-semibold">
+                            {{ $selectedPost->title }}
+                        </h2>
+                    @endif
+
+                    {{-- Content --}}
+                    <p class="mt-3 whitespace-pre-line leading-7 text-zinc-700 dark:text-zinc-300">
+                        {{ $selectedPost->content }}
+                    </p>
+
+                    {{-- Categories --}}
+                    @if ($selectedPost->categories->count())
+                        <div class="mt-4 flex flex-wrap gap-2">
+
+                            @foreach ($selectedPost->categories as $category)
+                                <span
+                                      class="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+
+                                    #{{ $category->name }}
+
+                                </span>
+                            @endforeach
+
+                        </div>
+                    @endif
+
+                    {{-- Image --}}
+                    @if ($selectedPost->image_url)
+                        <img class="mt-5 w-full rounded-xl border border-zinc-200 dark:border-zinc-700"
+                             src="{{ $selectedPost->image_url }}">
+                    @endif
+
+                    {{-- Stats --}}
+                    <div
+                         class="mt-6 flex gap-6 border-y border-zinc-200 py-3 text-sm text-zinc-500 dark:border-zinc-700">
+
+                        <span>
+                            ❤️
+                            {{ $selectedPostInteractions->where('interaction_type', InteractionTypeEnum::LIKE->value)->count() }}
+                            Likes
+                        </span>
+
+                        <span>
+                            💬
+                            {{ $selectedPostInteractions->where('interaction_type', InteractionTypeEnum::COMMENT->value)->count() }}
+                            Comments
+                        </span>
+
+                        <span>
+                            🔄
+                            {{ $selectedPostInteractions->where('interaction_type', InteractionTypeEnum::SHARE->value)->count() }}
+                            Shares
+                        </span>
+
+                    </div>
+
+                    {{-- Actions --}}
+                    <div class="flex justify-around border-b border-zinc-200 py-2 dark:border-zinc-700">
+
+                        @if ($selectedPostInteractions->where('user_id', auth()->id())->where('interaction_type', InteractionTypeEnum::LIKE->value)->count() > 0)
+                            <flux:button variant="ghost"
+                                         wire:click="toggleLike({{ $selectedPost->id }})">
+                                <flux:icon class="h-4 w-4 text-red-500 dark:text-red-400"
+                                           name="heart"
+                                           variant="solid" />
+                            </flux:button>
+                        @else
+                            <flux:button variant="ghost"
+                                         icon="heart"
+                                         wire:click="toggleLike({{ $selectedPost->id }})">
+                                Like
+                            </flux:button>
+                        @endif
+                        <flux:button variant="ghost"
+                                     icon="chat-bubble-left-right">
+
+                            Comment
+
+                        </flux:button>
+
+                        @if ($selectedPostInteractions->where('user_id', auth()->id())->where('interaction_type', InteractionTypeEnum::SHARE->value)->count() > 0)
+                            <flux:button variant="ghost"
+                                         wire:click="sharePost({{ $selectedPost->id }})">
+                                <flux:icon class="h-4 w-4 -rotate-45"
+                                           name="paper-airplane"
+                                           variant="solid" />
+                            </flux:button>
+                        @else
+                            <flux:button variant="ghost"
+                                         icon="arrow-path-rounded-square"
+                                         wire:click="sharePost({{ $selectedPost->id }})">
+                                Share
+                            </flux:button>
+                        @endif
+                    </div>
+
+                    {{-- Write Comment --}}
+                    <div class="mt-5">
+
+                        <flux:textarea wire:model.defer="comment"
+                                       rows="3"
+                                       placeholder="Write a comment..." />
+
+                        <div class="mt-3 flex justify-end">
+
+                            <flux:button wire:click="createComment({{ $selectedPost->id }})">
+
+                                Post Comment
+
+                            </flux:button>
+
+                        </div>
+
+                    </div>
+
+                    {{-- Comment List --}}
+                    <div class="mt-8">
+
+                        <h3 class="mb-4 font-semibold">
+                            Comments
+                        </h3>
+
+                        <div class="space-y-4">
+
+                            @forelse($selectedPost->comments as $comment)
+                                <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+
+                                    <div class="flex items-center justify-between">
+
+                                        <div>
+
+                                            <div class="font-medium">
+                                                {{ $comment->user->name }}
+                                            </div>
+
+                                            <div class="text-xs text-zinc-500">
+                                                {{ $comment->created_at->diffForHumans() }}
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                    <p class="mt-3 whitespace-pre-line text-sm">
+                                        {{ $comment->content }}
+                                    </p>
+
+                                    {{-- <div class="mt-3 flex gap-5 text-xs text-zinc-500">
+
+                                        <button class="hover:text-blue-500">
+                                            Like
+                                        </button>
+
+                                        <button class="hover:text-blue-500">
+                                            Reply
+                                        </button>
+
+                                    </div> --}}
+
+                                </div>
+
+                            @empty
+
+                                <div class="py-10 text-center text-sm text-zinc-500">
+
+                                    No comments yet.
+
+                                </div>
+                            @endforelse
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        @endif
+
+    </flux:modal>
     @if ($newPostsCount > 0)
         <button class="sticky top-0 z-10 mx-auto mb-2 mt-2 flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition hover:bg-blue-500"
                 wire:click="scrollToNewPosts">
@@ -255,15 +563,13 @@ new class extends Component {
                  wire:target="refresh-feed">
                 @forelse ($posts as $post)
                     <div class="@if ($post->id === $newPostId) animate-slide-in border-b-2 border-blue-500 bg-blue-50/50 dark:border-blue-400 dark:bg-blue-900/20 @else border-b border-zinc-200 dark:border-zinc-700 @endif px-4 py-4 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
+                         wire:click="viewPost({{ $post->id }})"
                          wire:key="post-{{ $post->id }}">
                         <div class="flex gap-3">
                             <div class="flex-shrink-0">
                                 @php
                                     $user = $post->users->first();
                                     $initials = $user ? $user->initials() : '?';
-                                    // $creatorInterests = $user
-                                    //     ? Interest::where('user_id', $user->id)->with('category')->get()
-                                    //     : collect();
                                 @endphp
                                 <div
                                      class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-semibold text-white shadow">
@@ -294,19 +600,6 @@ new class extends Component {
                                     @endif
                                 </div>
 
-                                {{-- @if ($creatorInterests->isNotEmpty())
-                                    <div class="mt-2 flex flex-wrap gap-2">
-                                        @foreach ($creatorInterests as $interest)
-                                            @if ($interest->category)
-                                                <span
-                                                      class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-blue-900/30 dark:text-blue-300">
-                                                    #{{ $interest->category->name }}
-                                                </span>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                @endif --}}
-
                                 @if ($post->title)
                                     <h3 class="mt-1 font-medium text-zinc-900 dark:text-zinc-100">
                                         {{ $post->title }}
@@ -336,21 +629,34 @@ new class extends Component {
                                 @endif
 
                                 <div class="mt-3 flex items-center gap-6 text-zinc-500 dark:text-zinc-400">
-                                    <button class="flex items-center gap-1.5 text-xs transition hover:text-blue-500">
+                                    <button class="flex items-center gap-1.5 text-xs transition hover:text-blue-500"
+                                            wire:click.stop="openReplyModal({{ $post->id }})">
                                         <flux:icon class="h-4 w-4"
                                                    name="chat-bubble-left-right" />
                                         <span>Reply</span>
                                     </button>
-                                    <button class="flex items-center gap-1.5 text-xs transition hover:text-green-500">
-                                        <flux:icon class="h-4 w-4"
-                                                   name="arrow-path-rounded-square" />
-                                        <span>Repost</span>
-                                    </button>
+                                    @if (in_array($post->id, $sharedPostIds))
+                                        <button class="flex items-center gap-1.5 text-xs transition hover:text-green-500"
+                                                wire:click.stop="sharePost({{ $post->id }})">
+                                            <flux:icon class="h-4 w-4 -rotate-45"
+                                                       name="paper-airplane"
+                                                       variant='solid' />
+                                            <span>Shared</span>
+                                        </button>
+                                    @else
+                                        <button class="flex items-center gap-1.5 text-xs transition hover:text-green-500"
+                                                wire:click.stop="sharePost({{ $post->id }})">
+
+                                            <flux:icon class="h-4 w-4"
+                                                       name="arrow-path-rounded-square" />
+                                            <span>Share</span>
+                                        </button>
+                                    @endif
                                     @php
                                         $isLiked = in_array($post->id, $likedPostIds);
                                     @endphp
                                     <button class="{{ $isLiked ? 'text-red-500 font-semibold' : 'text-zinc-500 hover:text-red-500 dark:text-zinc-400' }} group flex items-center gap-1.5 text-xs font-medium transition duration-200 focus:outline-none"
-                                            wire:click="toggleLike({{ $post->id }})"
+                                            wire:click.stop="toggleLike({{ $post->id }})"
                                             wire:loading.attr="disabled">
 
                                         {{-- Dynamic Heart Icon transformation --}}
@@ -376,7 +682,8 @@ new class extends Component {
                 @if ($loading)
                     <div class="flex items-center justify-center py-8"
                          wire:loading.class="hidden">
-                        <div class="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-blue-500"></div>
+                        <div class="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-blue-500">
+                        </div>
                     </div>
                 @endif
 
