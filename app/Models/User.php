@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -24,6 +25,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'is_test_user',
     ];
 
     /**
@@ -64,7 +66,7 @@ class User extends Authenticatable
             ->implode('');
     }
 
-    public function interests(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function interests(): BelongsToMany
     {
         return $this->belongsToMany(Category::class, 'interests')
             ->withPivot('weight')

@@ -124,17 +124,24 @@ class CollaborativeRecommendationService
     }
 
     /**
-     * Cold-start / pad fallback: just return latest unseen posts.
+     * Cold-start / pad fallback: just return posts most popular/interacted by other users, unseen by current users.
      */
     private function fallback(int $userId, int $offset, int $perPage): Collection
     {
-        $seenPostIds = Interaction::where('user_id', $userId)->pluck('post_id');
+        $seenPostIds = Interaction::where('user_id', '=', $userId, 'and')->pluck('post_id');
 
-        return Post::with(['users', 'categories'])
-            ->whereNotIn('id', $seenPostIds)
-            ->latest('published_at')
+        $popularPostIds = Interaction::select('post_id', DB::raw('SUM(weight) as total_weight'))
+            ->whereNotIn('post_id', $seenPostIds)
+            ->groupBy('post_id')
+            ->orderByDesc('total_weight')
             ->skip($offset)
             ->take($perPage)
-            ->get();
+            ->pluck('post_id');
+
+        return Post::with(['users', 'categories'])
+            ->whereIn('id', $popularPostIds)
+            ->get()
+            ->sortBy(fn ($post) => $popularPostIds->search($post->id))
+            ->values();
     }
 }

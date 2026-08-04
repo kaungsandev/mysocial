@@ -7,7 +7,6 @@ use App\Models\Interest;
 use App\Models\Post;
 use App\Services\Concerns\CalculatesCosineSimilarity;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 class ContentBasedRecommendationService
 {
@@ -15,21 +14,14 @@ class ContentBasedRecommendationService
 
     protected function popularityFallback(int $userId, int $offset, int $perPage): Collection
     {
-        $seenPostIds = Interaction::where('user_id', '=', $userId, 'and')->pluck('post_id');
-
-        $popularPostIds = Interaction::select('post_id', DB::raw('SUM(weight) as total_weight'))
-            ->whereNotIn('post_id', $seenPostIds)
-            ->groupBy('post_id')
-            ->orderByDesc('total_weight')
-            ->skip($offset)
-            ->take($perPage)
-            ->pluck('post_id');
+        $seenPostIds = Interaction::where('user_id', $userId)->pluck('post_id');
 
         return Post::with(['users', 'categories'])
-            ->whereIn('id', $popularPostIds)
-            ->get()
-            ->sortBy(fn ($post) => $popularPostIds->search($post->id))
-            ->values();
+            ->whereNotIn('id', $seenPostIds)
+            ->latest('published_at')
+            ->skip($offset)
+            ->take($perPage)
+            ->get();
     }
 
     /**

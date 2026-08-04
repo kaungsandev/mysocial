@@ -75,24 +75,25 @@ new class extends Component {
             return;
         }
 
-        $k = count($this->recommendedPostIds);
+        // $k = count($this->recommendedPostIds);
 
-        // Relevant Found in Top K: recommended posts matching user's interest categories
-        $relevantFound = $metricCalculationService->countRelevantPostsFound($this->recommendedPostIds, $userCategoryIds);
+        // // Relevant Found in Top K: recommended posts matching user's interest categories
+        // $relevantFound = $metricCalculationService->countRelevantPostsFound($this->recommendedPostIds, $userCategoryIds);
 
-        // Total Relevant in Dataset: ALL unseen posts DB-wide matching those categories
-        $totalRelevant = $metricCalculationService->countTotalRelevantPosts($userId, $userCategoryIds);
+        // // Total Relevant in Dataset: ALL unseen posts DB-wide matching those categories
+        // $totalRelevant = $metricCalculationService->countTotalRelevantPosts($userId, $userCategoryIds);
 
-        $precision = $metricCalculationService->calculatePrecision($relevantFound, $k);
-        $recall = $metricCalculationService->calculateRecall($relevantFound, $totalRelevant);
+        // $precision = $metricCalculationService->calculatePrecision($relevantFound, $k);
+        // $recall = $metricCalculationService->calculateRecall($relevantFound, $totalRelevant);
 
-        $this->metrics = [
-            'k' => $k,
-            'relevantFound' => $relevantFound,
-            'totalRelevant' => $totalRelevant,
-            'precision' => round($precision, 3),
-            'recall' => round($recall, 3),
-        ];
+        // $this->metrics = [
+        //     'k' => $k,
+        //     'relevantFound' => $relevantFound,
+        //     'totalRelevant' => $totalRelevant,
+        //     'precision' => round($precision, 3),
+        //     'recall' => round($recall, 3),
+        // ];
+        $this->metrics = $metricCalculationService->evaluateBatch($userId, $this->recommendedPostIds, $userCategoryIds);
     }
 };
 ?>
