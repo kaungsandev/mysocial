@@ -66,9 +66,9 @@ new class extends Component {
         if (!$userId || empty($this->recommendedPostIds)) {
             return;
         }
-
+        $metricCalculationService = new \App\Services\MetricCalculationService();
         // Same vector source RecommendationService uses for similarity
-        $userCategoryIds = $this->getUserInterestCategoryIds($userId);
+        $userCategoryIds = $metricCalculationService->getUserInterestCategoryIds($userId);
 
         if (empty($userCategoryIds)) {
             $this->metrics = ['error' => 'No interest signal available yet for this user.'];
@@ -78,15 +78,13 @@ new class extends Component {
         $k = count($this->recommendedPostIds);
 
         // Relevant Found in Top K: recommended posts matching user's interest categories
-        $relevantFound = Post::whereIn('id', $this->recommendedPostIds)->whereHas('categories', fn($q) => $q->whereIn('categories.id', $userCategoryIds))->count();
+        $relevantFound = $metricCalculationService->countRelevantPostsFound($this->recommendedPostIds, $userCategoryIds);
 
         // Total Relevant in Dataset: ALL unseen posts DB-wide matching those categories
-        $seenPostIds = Interaction::where('user_id', $userId)->pluck('post_id');
+        $totalRelevant = $metricCalculationService->countTotalRelevantPosts($userId, $userCategoryIds);
 
-        $totalRelevant = Post::whereNotIn('id', $seenPostIds)->whereHas('categories', fn($q) => $q->whereIn('categories.id', $userCategoryIds))->count();
-
-        $precision = $k > 0 ? $relevantFound / $k : 0;
-        $recall = $totalRelevant > 0 ? $relevantFound / $totalRelevant : 0;
+        $precision = $metricCalculationService->calculatePrecision($relevantFound, $k);
+        $recall = $metricCalculationService->calculateRecall($relevantFound, $totalRelevant);
 
         $this->metrics = [
             'k' => $k,
@@ -95,17 +93,6 @@ new class extends Component {
             'precision' => round($precision, 3),
             'recall' => round($recall, 3),
         ];
-    }
-
-    private function getUserInterestCategoryIds(int $userId): array
-    {
-        // Behavioral signal first (same priority as RecommendationService)
-        $fromInterests = Interest::where('user_id', $userId)->where('weight', '>=', 3)->pluck('category_id');
-
-        if ($fromInterests->isNotEmpty()) {
-            return $fromInterests->toArray();
-        }
-        return [];
     }
 };
 ?>
