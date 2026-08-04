@@ -7,15 +7,15 @@
                         {{ $attributes }}>
         <x-slot class="bg-accent-content text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-md"
                 name="logo">
-            <x-app-logo-icon class="size-5 fill-current text-white dark:text-black" />
+            {{-- <x-app-logo-icon class="size-5 fill-current text-white dark:text-black" /> --}}
         </x-slot>
     </flux:sidebar.brand>
 @else
     <flux:brand name="MySocial"
                 {{ $attributes }}>
-        <x-slot class="bg-accent-content text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-md"
+        {{-- <x-slot class="bg-accent-content text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-md"
                 name="logo">
             <x-app-logo-icon class="size-5 fill-current text-white dark:text-black" />
-        </x-slot>
+        </x-slot> --}}
     </flux:brand>
 @endif

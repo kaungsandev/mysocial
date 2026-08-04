@@ -1,6 +1,6 @@
 <x-layouts::app.header :title="$title ?? null">
     <flux:main class="p-0!">
-        <form class="flex min-h-screen items-center justify-center bg-gray-950 px-6 text-white"
+        <form class="flex min-h-screen items-center justify-center bg-gray-50 px-6 text-white dark:bg-gray-950"
               action="{{ route('algorithm.select.store') }}"
               method="POST"
               x-data="{ selected: '{{ old('algorithm') }}' }">
